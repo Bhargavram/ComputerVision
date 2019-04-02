@@ -1,0 +1,60 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
+from PIL import Image
+
+# creating the filter
+def filt(shape, sigma):
+    m, n = [(ss - 1.) / 2. for ss in shape]
+    y, x = np.ogrid[-m:m + 1, -n:n + 1]
+    h = np.exp(-(x * x + y * y) / (2. * sigma * sigma))
+    h[h < np.finfo(h.dtype).eps * h.max()] = 0
+    sumh = h.sum()
+    if sumh != 0:
+        h /= sumh
+    return h
+# convolution
+def convol(image, kernel):
+    m, n = kernel.shape
+    y, x = image.shape
+    y1, x1 = image.shape
+    new_image = np.zeros((y1, x1))
+    temp1 = np.zeros([y, int(m / 2)+1])
+    image = np.append(image, temp1, axis=1)
+    image = np.append(temp1, image, axis=1)
+    y, x = image.shape
+    temp2 = np.zeros([int(m / 2)+1, x])
+    image = np.append(image, temp2, axis=0)
+    image = np.append(temp2, image, axis=0)
+
+    for i in range(y1):
+        for j in range(x1):
+            new_image[i][j] = np.sum(image[i:i + m, j:j + m] * kernel)
+
+    return new_image
+
+def rgb2gray(rgb):
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+
+def SecondDerivImage(image, sigma):
+    img = mpimg.imread(image)
+    gray = rgb2gray(img)
+    Shapey, Shapex = gray.shape
+    temp = np.zeros([1, Shapex])
+    gray = np.append(gray, temp, axis=0)
+    Shapey, Shapex = gray.shape
+    temp = np.zeros([Shapey, 1])
+    gray = np.append(gray, temp, axis=1)
+    gray = np.diff(gray,axis = 0)
+    gray = np.diff(gray,axis = 1)
+    filter_size = 2 * int(sigma * 4 + 0.5) + 1
+    fil = filt((filter_size, filter_size), sigma)
+    ans = convol(gray, fil)
+    ans = ans*255/ans.max()
+    ans = ans+128
+    img_new = Image.fromarray(ans)
+    img_new = img_new.convert("RGB")
+    fp = open("3b.png", "wb")
+    img_new.save(fp)
