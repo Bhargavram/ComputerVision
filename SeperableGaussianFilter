@@ -1,0 +1,112 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
+from PIL import Image
+import time
+
+
+# # creating the filter
+# def Hfilt(shape, sigma):
+#     m, n = [(ss - 1.) / 2. for ss in shape]
+#     y, x = np.ogrid[-m:m + 1, -n:n + 1]
+#     h = np.exp(-(x * x) / (2. * sigma * sigma))
+#     h[h < np.finfo(h.dtype).eps * h.max()] = 0
+#     sumh = h.sum()
+#     if sumh != 0:
+#         h /= sumh
+#     return h
+# def Vfilt(shape, sigma):
+#     m, n = [(ss - 1.) / 2. for ss in shape]
+#     y, x = np.ogrid[-m:m + 1, -n:n + 1]
+#     h = np.exp(-(y * y) / (2. * sigma * sigma))
+#     h[h < np.finfo(h.dtype).eps * h.max()] = 0
+#     sumh = h.sum()
+#     if sumh != 0:
+#         h /= sumh
+#     return h
+def Hfilt(filter_size, sigma):
+    gauss_filter = np.zeros((filter_size, filter_size), dtype=np.float32)
+    for i in range(filter_size):
+        for j in range(filter_size):
+            x = i - filter_size // 2
+            y = j - filter_size // 2
+            tmp = (-1) / (2 * np.pi * sigma ** 2) * np.exp(-(x ** 2) / (2 * sigma ** 2))
+            gauss_filter[i, j] = tmp
+    return gauss_filter
+
+
+def Vfilt(filter_size, sigma):
+    gauss_filter = np.zeros((filter_size, filter_size), dtype=np.float32)
+    for i in range(filter_size):
+        for j in range(filter_size):
+            x = i - filter_size // 2
+            y = j - filter_size // 2
+            tmp = (-1) / (2 * np.pi * sigma ** 2) * np.exp(-(y ** 2) / (2 * sigma ** 2))
+            gauss_filter[i, j] = tmp
+    return gauss_filter
+
+
+# convolution
+def convol(image, kernel):
+    m, n = kernel.shape
+    y, x = image.shape
+    y1, x1 = image.shape
+    new_image = np.zeros((y1, x1))
+    temp1 = np.zeros([y, int(m / 2)])
+    image = np.append(image, temp1, axis=1)
+    image = np.append(temp1, image, axis=1)
+    y, x = image.shape
+    temp2 = np.zeros([int(m / 2), x])
+    image = np.append(image, temp2, axis=0)
+    image = np.append(temp2, image, axis=0)
+
+    for i in range(y1):
+        for j in range(x1):
+            new_image[i][j] = np.sum(image[i:i + m, j:j + m] * kernel)
+
+    return new_image
+
+
+def rgb2gray(rgb):
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+
+def SeparableGaussianBlurImage(image, sigma):
+    t1 = time.time()
+    img = mpimg.imread(image)
+    gray = rgb2gray(img)
+    # plt.imshow(gray)
+    # plt.show()
+    filter_size = 2 * int(sigma * 4 + 0.5) + 1
+    Hfil = Hfilt((filter_size), sigma)
+    Vfil = Vfilt((filter_size), sigma)
+    # plt.imshow(fil)
+    # plt.show()
+    Hres = convol(gray, Hfil)
+    Vres = convol(Hres, Vfil)
+    # plt.imshow(Vres)
+    # plt.show()
+
+    # print(type(temp))
+    # print(temp.shape)
+    # np.concatenate((Vres,temp), axis = 1)
+    # # Vres = Vres+temp
+    # print(Vres.shape)
+    # finalres = Hres+Vres
+    # img_new2 = Image.fromarray(Hres)
+    # img_new2 = img_new2.convert("RGB")
+    # f = open("hres.png", "wb")
+    # img_new2.save(f
+
+    Vres = Vres * 255 / Vres.max()
+    #     Vres +=128
+    ans = Image.fromarray(Vres)
+    ans = ans.convert("RGB")
+    fp = open("2.png", "wb")
+    ans.save(fp)
+    print("time taken for every sigma ", sigma, "is", time.time() - t1)
+    # ans.save("2.png")
+
+    # plt.imshow(img_new2)
+    # plt.show()
