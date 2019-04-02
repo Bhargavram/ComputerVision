@@ -1,0 +1,145 @@
+import numpy as np
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+from PIL import Image
+import cv2
+import math
+
+
+def FindPeaksImage(image, thres):
+    image1 = Image.open(image)
+    shapey = image1.width
+    shapex = image1.height
+    pixx = image1.load()
+    result = np.zeros((shapex, shapey), dtype=np.float32)
+
+    magnitude, orientation= SobelImage(image)
+     # = sobel_filter2(image)
+
+    for i in range(shapex):
+        for j in range(shapey):
+            if magnitude[i, j] < thres:
+                magnitude[i, j] = 0
+            else:
+                o = orientation[i, j]
+                E_0 = []
+                E_1 = []
+                E_0.append(i + math.cos(math.radians(o)))
+                E_0.append(j + math.sin(math.radians(o)))
+
+                E_1.append(i + math.cos(math.radians(-o)))
+                E_1.append(j + math.sin(math.radians(-o)))
+
+                e0Mag = BilinearInterpolation(magnitude, E_0[0], E_0[1])
+                e1Mag = BilinearInterpolation(magnitude, E_1[0], E_1[1])
+
+                if e0Mag < magnitude[i, j] > e1Mag:
+                    result[i, j] = 255
+                else:
+                    result[i, j] = 0
+    cv2.imwrite('7.png', result)
+    print("Done!!!!")
+
+def BilinearInterpolation(f, x_, y_):
+    x = math.floor(x_)
+    y = math.floor(y_)
+
+    _x = math.ceil(x_)
+    _y = math.ceil(y_)
+
+    a = x_ - x
+    b = y_ - y
+
+    temp1 = (1 - a) * (1 - b) * f[x, y]
+
+    if _x < f.shape[0]:
+        temp2 = a * (1 - b) * f[_x, y]
+    else:
+        temp2 = 0 * f[0, 0]
+
+    if _y < f.shape[1]:
+        temp3 = (1 - a) * b * f[x, _y]
+    else:
+        temp3 = 0 * f[0, 0]
+
+    if _x < f.shape[0] and _y < f.shape[1]:
+        temp4 = a * b * f[_x, _y]
+    else:
+        temp4 = 0 * f[0, 0]
+
+    return temp1 + temp2 + temp3 + temp4
+
+
+def SobelImage(image):
+
+    img1 = Image.open(image).convert('LA')
+    width = img1.width
+    height = img1.height
+    pixx = img1.load()
+
+    def rgb2gray(rgb):
+        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+    img = mpimg.imread(image)
+    gray = rgb2gray(img)
+    gray = gray * 255
+
+    # Creating Filter
+    g_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+    g_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+    fs = 3
+
+    magnitude = np.zeros((height, width), dtype=np.float32)
+    orientation = np.zeros((height, width), dtype=np.float32)
+    orient = np.zeros((height, width, 3), dtype=np.float32)
+
+    pix = gray
+
+    for i in range(1, height - 1):
+        for j in range(1, width - 1):
+            cPos = (i, j)
+            temp = pix[cPos[0] - (fs // 2):cPos[0] + (fs // 2) + 1,
+                  cPos[1] - (fs // 2):cPos[1] + (fs // 2) + 1]
+            temp1 = temp * g_x
+            temp1 = temp1.sum(axis=0)
+            temp1 = temp1.sum(axis=0)
+
+            temp2 = temp * g_y
+            temp2 = temp2.sum(axis=0)
+            temp2 = temp2.sum(axis=0)
+
+            magnitude[i, j] = (temp2 ** 2 + temp1 ** 2) ** 0.5
+            if temp1 == 0 and temp2 > 0:
+                orientation[i, j] = math.degrees(math.atan(float('inf')))
+            elif temp1 == 0 and temp2 < 0:
+                orientation[i, j] = math.degrees(math.atan(float('-inf')))
+            elif temp1 == 0 and temp2 == 0:
+                orientation[i, j] = 1
+            elif temp1 != 0:
+                orientation[i, j] = (math.degrees(math.atan(temp2 / temp1)))
+            else:
+                print("Error:")
+
+    magnitude = magnitude * 255 / magnitude.max()
+
+
+    for i in range(0, height):
+        for j in range(0, width):
+             #Four color combination
+            if -22.5 <= orientation[i, j] <= 22.5:
+                orient[i, j] = np.array([128, 128, 128])
+
+            elif 22.5 < orientation[i, j] <= 67.5:
+                orient[i, j] = np.array([0, 0, 155])
+
+            elif 67.5 < orientation[i, j] <= 90 or -90 <= orientation[i, j] <= -67.5:
+                orient[i, j] = np.array([0, 155, 0])
+
+            elif -67.5 < orientation[i, j] <= -22.5:
+                orient[i, j] = np.array([155, 0, 0])
+
+            else:
+                orient[i, j] = np.array([0, 0, 0])
+
+
+    return (magnitude, orientation)
