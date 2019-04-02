@@ -1,0 +1,120 @@
+import numpy as np
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+from PIL import Image
+import cv2
+import math
+def sobel_filter2(image):
+    # Reading image using import image
+    img1 = Image.open(image).convert('LA')
+    width = img1.width
+    height = img1.height
+    pixx = img1.load()
+
+    def rgb2gray(rgb):
+        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+    img = mpimg.imread(image)
+    gray = rgb2gray(img)
+    gray = gray * 255
+
+    # Filter of size 3
+    g_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
+    g_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+    filter_size = 3
+
+    orientation = np.zeros((height, width), dtype=np.float32)
+    orient = np.zeros((height, width, 3), dtype=np.float32)
+
+    pix = gray
+    for i in range(1, height - 1):
+        for j in range(1, width - 1):
+            cPos = (i, j)
+            tmp = pix[cPos[0] - (filter_size // 2):cPos[0] + (filter_size // 2) + 1,
+                  cPos[1] - (filter_size // 2):cPos[1] + (filter_size // 2) + 1]
+            tmp1 = tmp * g_x
+            tmp1 = tmp1.sum(axis=0)
+            tmp1 = tmp1.sum(axis=0)
+
+            tmp2 = tmp * g_y
+            tmp2 = tmp2.sum(axis=0)
+            tmp2 = tmp2.sum(axis=0)
+            if tmp1 == 0 and tmp2 > 0:
+                orientation[i, j] = math.degrees(math.atan(float('inf')))
+            elif tmp1 == 0 and tmp2 < 0:
+                orientation[i, j] = math.degrees(math.atan(float('-inf')))
+            elif tmp1 == 0 and tmp2 == 0:
+                orientation[i, j] = 1
+            elif tmp1 != 0:
+                orientation[i, j] = (math.degrees(math.atan(tmp2 / tmp1)))
+            else:
+                print("::::ERROR::::")
+
+
+    for i in range(0, height):
+        for j in range(0, width):
+            #             #Four color combination
+            if -22.5 <= orientation[i, j] <= 22.5:
+                orient[i, j] = np.array([128, 128, 128])
+
+            elif 22.5 < orientation[i, j] <= 67.5:
+                orient[i, j] = np.array([255, 165, 0])
+
+            elif 67.5 < orientation[i, j] <= 90 or -90 <= orientation[i, j] <= -67.5:
+                orient[i, j] = np.array([173,255,47])
+
+            elif -67.5 < orientation[i, j] <= -22.5:
+                orient[i, j] = np.array([153,50,204])
+
+            else:
+                orient[i, j] = np.array([0, 0, 0])
+
+
+    cv2.imwrite('5b.png', orient)
+    print("5.b saved ")
+
+def sobel_filter1(im):
+    im = mpimg.imread(im)
+    im = im.astype(np.float)
+    width, height, c = im.shape
+    if c > 1:
+        img = 0.2126 * im[:, :, 0] + 0.7152 * im[:, :, 1] + 0.0722 * im[:, :, 2]
+    else:
+        img = im
+    kh = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float)
+    kv = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float)
+    gx = convol(img,kh)
+    gy = convol(img,kv)
+    g = np.sqrt(gx * gx + gy * gy)
+    return g
+# convolution
+def convol(image, kernel):
+    m, n = kernel.shape
+    y, x = image.shape
+    y1, x1 = image.shape
+    new_image = np.zeros((y1, x1))
+    temp1 = np.zeros([y, int(m / 2)])
+    image = np.append(image, temp1, axis=1)
+    image = np.append(temp1, image, axis=1)
+    y, x = image.shape
+    temp2 = np.zeros([int(m / 2), x])
+    image = np.append(image, temp2, axis=0)
+    image = np.append(temp2, image, axis=0)
+    for i in range(y1):
+        for j in range(x1):
+            new_image[i][j] = np.sum(image[i:i + m, j:j + m] * kernel)
+    # print(new_image.shape)
+    return new_image
+
+def sobelImage(image):
+    ans = sobel_filter1(image)
+
+    img_new = Image.fromarray(ans)
+    # img_new = img_new.convert("L")
+    print("magnitude with sobel filter")
+    img_new = img_new.convert("RGB")
+    fp = open("5a.png", "wb")
+    img_new.save(fp)
+
+    print("done!!!! saved as 5a.png")
+    sobel_filter2(image)
