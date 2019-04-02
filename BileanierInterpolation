@@ -1,0 +1,57 @@
+import numpy as np
+
+from PIL import Image
+import cv2
+import math
+def BilinearInterpolation(f, x_, y_):
+    x = math.floor(x_)
+    y = math.floor(y_)
+
+    _x = math.ceil(x_)
+    _y = math.ceil(y_)
+
+    a = x_ - x
+    b = y_ - y
+
+    t1 = (1 - a) * (1 - b) * f[x, y]
+
+    if _x < f.shape[0]:
+        t2 = a * (1 - b) * f[_x, y]
+    else:
+        t2 = 0 * f[0, 0]
+
+    if _y < f.shape[1]:
+        t3 = (1 - a) * b * f[x, _y]
+    else:
+        t3 = 0 * f[0, 0]
+
+    if _x < f.shape[0] and _y < f.shape[1]:
+        t4 = a * b * f[_x, _y]
+    else:
+        t4 = 0 * f[0, 0]
+
+    return t1 + t2 + t3 + t4
+
+
+def upsample(image, sf):
+    image1 = Image.open(image)
+    shapey = image1.width
+    shapex = image1.height
+    pixx = image1.load()
+    #     print(width, height)
+
+    pix = np.zeros((shapey, shapex, 3), dtype=np.float32)
+
+    for i in range(shapey):
+        for j in range(shapex):
+            pix[i, j] = pixx[i, j]
+    sPix = np.zeros((shapey * int(sf), shapex * int(sf), 3), dtype=np.float32)
+    for i in range(0, shapey * int(sf)):
+        for j in range(0, shapex * int(sf)):
+            temp1 = i/sf
+            temp2 = j/sf
+            newPix = BilinearInterpolation(pix, temp1, temp2)
+            sPix[i, j] = newPix
+
+    cv2.imwrite('6b.png', sPix)
+
