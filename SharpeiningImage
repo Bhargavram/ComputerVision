@@ -1,0 +1,86 @@
+import numpy as np
+from PIL import Image
+
+def SharpenImage(image, sigma, alpha):
+    img1 = Image.open(image)
+    shapey = img1.width
+    shapex = img1.height
+    il = img1.load()
+    ip = np.zeros((shapey, shapex, 3), dtype=np.float32)
+
+    for i in range(shapey):
+        for j in range(shapex):
+            ip[i, j] = il[i, j]
+
+    ans = SecondDerivImage(image, sigma)
+    result = (alpha * ans)
+    result = ip - result
+
+    for i in range(shapey):
+        for j in range(shapex):
+            il[i, j] = (result[i, j][0], result[i, j][1], result[i, j][2])
+
+    img1.save('4.png')
+    print("Done!!!!....")
+
+
+def SecondDerivImage(image, sigma):
+    tmp = int(sigma* 4 +0.5)
+    fs = 2 * tmp + 1
+
+    gauss_filter2Derv = np.zeros((fs, fs, 3), dtype=np.float32)
+    gauss_filter = np.zeros((fs, fs, 3), dtype=np.float32)
+    for i in range(fs):
+        for j in range(fs):
+            x = i - fs // 2
+            y = j - fs // 2
+            #second derivative of gaussian filter
+            temp = (-1 + (y ** 2 / sigma ** 2)) * ((np.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2))) / (2 * np.pi * sigma ** 4))
+            gauss_filter2Derv[i, j] = np.array([temp, temp, temp])
+    for i in range(fs):
+        for j in range(fs):
+            x = i - fs // 2
+            y = j - fs // 2
+          #gaussin filter equaiton
+            temp = (-1 + (x ** 2 / sigma ** 2)) * ((np.exp(-(x ** 2 + y ** 2) / (2 * sigma ** 2))) / (2 * np.pi * sigma ** 4))
+            gauss_filter[i, j] = np.array([temp, temp, temp])
+
+
+
+    img = Image.open(image)
+
+    IL = img.load()
+    shapey = img.width
+    shapex = img.height
+    ni = np.zeros((shapey + fs - 1, shapex + fs - 1, 3), dtype=np.float32)
+
+    for i in range(shapey):
+        for j in range(shapex):
+            ni[i + fs // 2, j + fs // 2] = IL[i, j]
+
+    # CONVOLUTION
+    for i in range(0, shapey):
+        for j in range(0, shapex):
+            cPos = (i, j)
+            temp = ni[cPos[0]:cPos[0] + (fs), cPos[1]:cPos[1] + (fs)]
+            temp = temp * gauss_filter
+            temp = temp.sum(axis=0)
+            temp = temp.sum(axis=0)
+            IL[i, j] = (int(temp[0]), int(temp[1]), int(temp[2]))
+    for i in range(0, shapey):
+        for j in range(0, shapex):
+            cPos = (i, j)
+            temp = ni[cPos[0]:cPos[0] + (fs), cPos[1]:cPos[1] + (fs)]
+            temp = temp * gauss_filter2Derv
+            temp = temp.sum(axis=0)
+            temp = temp.sum(axis=0)
+            IL[i, j] = (int(temp[0] + IL[i, j][0] + 128), int(temp[1] + IL[i, j][1] + 128), int(temp[2] + IL[i, j][2] + 128))
+
+
+    result = np.zeros((shapey, shapex, 3), dtype=np.float32)
+    for i in range(shapey):
+        for j in range(shapex):
+            result[i, j] = IL[i, j]
+
+    return result - 128
+
